@@ -32,18 +32,26 @@ field: list-constraint \ xt of constraint
 constant list-size
 
 : instconstraints {: u var list -- :}
+    \ perform all constraints after setting var to u
     list begin {: l :}
         l while
             u var l list-constraint @ execute
             l list-next @
     repeat ;
 
-: insert-constraint {: xt listp -- :}
+: insert-constraint ~~ {: xt listp -- :}
     \ insert xt at in the list pointed to by listp
     list-size allocate throw {: l :}
     listp @ l list-next !
     xt l list-constraint !
     l listp ! ;
+
+: .constraints {: list -- :}
+    list begin {: l :}
+        l while
+            l .addr.
+            l list-next @
+    repeat ;
 
 \ variable in a constraint satisfaction problem
 0
@@ -73,6 +81,11 @@ constant var-size
 : constraint! ( xt var -- )
     var-wheninst insert-constraint ;
 
+: .v {: v -- :}
+    cr ." val=" v var-val @ .
+    ."  bits=" v var-bits @ hex.
+    ."  wheninst:" v var-wheninst @ .constraints ;
+
 \ labeling support
 
 : label {: var xt -- :}
@@ -93,7 +106,7 @@ constant var-size
 : array-constraint! {: xt addr u -- :}
     \ make xt a wheninst constraint action for all variables in addr u
     u 0 +do
-        xt addr i th constraint!
+        xt addr i th @ constraint!
     loop ;
 
 \ alldifferent
