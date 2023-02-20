@@ -1,11 +1,5 @@
 \ constraint satisfaction problem semi-general stuff
 
-defer xxx
-
-\ : ~~f ]] ~~ [[ ; immediate
-: ~~f ; immediate
-
-
 \ failure on a branch of the search tree is indicated by an exception
 
 "no (more) solutions" exception constant failure
@@ -66,7 +60,7 @@ field: var-bits \ potential values
 field: var-wheninst \ linked list of constraints woken up when instantiated
 constant var-size
 
-: .v {: v -- :}
+: .v {: v -- :} \ for debugging
     cr v .id ." : "
     ." val=" v var-val @ .
     ."  bits=" v var-bits @ hex.
@@ -84,9 +78,9 @@ constant var-size
     \ instantiate var to u; throws iff var cannot be instantiated to u
     \ (not in the remaining values, or a constraint is not
     \ satisfiable)
-    u 64 u>= if failure ~~f throw then
-    var var-val @ dup 0>= swap u <> and if failure ~~f throw then
-    var var-bits @ 1 u lshift and 0= if failure ~~f throw then
+    u 64 u>= if failure throw then
+    var var-val @ dup 0>= swap u <> and if failure throw then
+    var var-bits @ 1 u lshift and 0= if failure throw then
     u var var-val !bt
     u var var var-wheninst @ instconstraints ;
 
@@ -123,9 +117,9 @@ constant var-size
     addr1 u1 th addr1 u+do
         i @ {: vari :}
         vari var <> if
-            vari var-val @ dup u = if failure ~~f throw then ( val )
+            vari var-val @ dup u = if failure throw then ( val )
             0< if ( ) \ not yet instantiated
-                1 u lshift vari var-bits @ 2dup and 0= if failure ~~f throw then
+                1 u lshift vari var-bits @ 2dup and 0= if failure throw then
                 xor dup pow2? if ( x ) \ only one bit set
                     ctz vari !var
                 else
@@ -157,7 +151,7 @@ constant var-size
     dup if
         usum rot - swap !var
     else
-        drop usum <> if failure ~~f throw then
+        drop usum <> if failure throw then
     then ;
 
 : arraysum ( addr u usum -- )
@@ -249,24 +243,20 @@ A E J O S 38 5sum
     \ B G P R N D follow from the 3sum constraints
     \ then label one other 4sum variable: E
     \ I N O K F J follow from the constraints
-    A
-    [: C
-        [: L
-            [: S
-                [: Q
-                    [: H
-                        [: E
-                            [: printsolution failure ~~f throw ;]
+    [: A
+        [: C
+            [: L
+                [: S
+                    [: Q
+                        [: H
+                            [: E
+                                [: printsolution failure throw ;]
+                                label ;]
                             label ;]
                         label ;]
                     label ;]
                 label ;]
             label ;]
         label ;]
-    label ;
-
-\ : test ( -- )
-\    A [: A .var failure throw ;] label ;
-
-: xxx1 ." tsp @: " tsp @ hex. A .v B .v C .v ;
-`xxx1 is xxx
+    catch dup failure <> and throw
+    ." no (more) solutions" cr ;
