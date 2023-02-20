@@ -2,6 +2,10 @@
 
 defer xxx
 
+\ : ~~f ]] ~~ [[ ; immediate
+: ~~f ; immediate
+
+
 \ failure on a branch of the search tree is indicated by an exception
 
 "no (more) solutions" exception constant failure
@@ -16,13 +20,13 @@ variable tsp trail-stack trail-elements 2* cells + tsp !
 : !bt ( x addr -- )
     \ like !, but records the old value on the trail stack
     dup @ over ( x addr old-x addr )
-    tsp @ 2 cells - dup tsp ! ~~ xxx 2! ( x addr )
+    tsp @ 2 cells - dup tsp ! 2! ( x addr )
     ! ;
 
-: undo ~~ ( addr -- )
+: undo ( addr -- )
     \ undo everything on the trail stack above addr, starting from the top
-    dup tsp @ ~~ u+do
-        i 2@ ~~ !
+    dup tsp @ u+do
+        i 2@ !
     2 cells +loop
     tsp ! ;
 
@@ -76,13 +80,13 @@ constant var-size
     1 u2 1+ lshift 1- 1 u1 lshift 1- xor var var-bits !
     0 var var-wheninst ! ;
 
-: !var ~~ {: u var -- :}
+: !var {: u var -- :}
     \ instantiate var to u; throws iff var cannot be instantiated to u
     \ (not in the remaining values, or a constraint is not
     \ satisfiable)
-    assert( u 64 u< )
-    var var-val @ dup 0>= swap u <> and if ~~ xxx failure throw then
-    var var-bits @ 1 u lshift ~~ and 0= failure and ~~ throw
+    u 64 u>= if failure ~~f throw then
+    var var-val @ dup 0>= swap u <> and if failure ~~f throw then
+    var var-bits @ 1 u lshift and 0= if failure ~~f throw then
     u var var-val !bt
     u var var var-wheninst @ instconstraints ;
 
@@ -101,7 +105,7 @@ constant var-size
                 r@ failure <> r> and throw then
             1 rshift
         loop
-        drop failure ~~ throw
+        drop failure throw
     then ;
 
 \ some constraints:
@@ -119,9 +123,9 @@ constant var-size
     addr1 u1 th addr1 u+do
         i @ {: vari :}
         vari var <> if
-            vari var-val @ dup u = failure and ~~ throw ( val )
+            vari var-val @ dup u = if failure ~~f throw then ( val )
             0< if ( ) \ not yet instantiated
-                1 u lshift vari var-bits @ 2dup and 0= failure and ~~ throw
+                1 u lshift vari var-bits @ 2dup and 0= if failure ~~f throw then
                 xor dup pow2? if ( x ) \ only one bit set
                     ctz vari !var
                 else
@@ -137,7 +141,7 @@ constant var-size
 
 \ ...sum
 
-: arraysum-c ~~ {: u var addr1 u1 usum -- :}
+: arraysum-c {: u var addr1 u1 usum -- :}
     \ with var set to u, deal with the constraint that the sum of the
     \ variables in addr1 u1 equals usum.
     0 0 u1 0 +do ( usum1 var1 )
@@ -151,9 +155,9 @@ constant var-size
         then
     loop
     dup if
-        usum rot - swap ~~ !var
+        usum rot - swap !var
     else
-        drop usum <> if failure ~~ throw then
+        drop usum <> if failure ~~f throw then
     then ;
 
 : arraysum ( addr u usum -- )
@@ -227,7 +231,7 @@ G K O R 38 4sum
 B F K P 38 4sum
 D I N R 38 4sum
 H I J K L 38 5sum
-C F H N Q 38 5sum
+C F J N Q 38 5sum
 A E J O S 38 5sum
 
 : .var ( var -- )
@@ -252,7 +256,7 @@ A E J O S 38 5sum
                 [: Q
                     [: H
                         [: E
-                            [: printsolution failure ~~ throw ;]
+                            [: printsolution failure ~~f throw ;]
                             label ;]
                         label ;]
                     label ;]
