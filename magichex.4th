@@ -1,5 +1,7 @@
 \ constraint satisfaction problem semi-general stuff
 
+defer xxx
+
 \ failure on a branch of the search tree is indicated by an exception
 
 "no (more) solutions" exception constant failure
@@ -9,19 +11,19 @@
 [undefined] trail-elements [if] 10000 constant trail-elements [then]
 
 trail-elements 2* cells allocate throw constant trail-stack
-variable tsp trail-stack tsp !
+variable tsp trail-stack trail-elements 2* cells + tsp !
 
 : !bt ( x addr -- )
     \ like !, but records the old value on the trail stack
     dup @ over ( x addr old-x addr )
-    tsp @ 2 cells + dup tsp ! 2! ( x addr )
+    tsp @ 2 cells - dup tsp ! ~~ xxx 2! ( x addr )
     ! ;
 
-: undo ( addr -- )
+: undo ~~ ( addr -- )
     \ undo everything on the trail stack above addr, starting from the top
-    tsp @ 2 cells - over 2 cells - u-do
-        i 2@ !
-    2 cells -loop
+    dup tsp @ ~~ u+do
+        i 2@ ~~ !
+    2 cells +loop
     tsp ! ;
 
 \ linked list of constraints
@@ -39,7 +41,7 @@ constant list-size
             l list-next @
     repeat ;
 
-: insert-constraint ~~ {: xt listp -- :}
+: insert-constraint {: xt listp -- :}
     \ insert xt at in the list pointed to by listp
     list-size allocate throw {: l :}
     listp @ l list-next !
@@ -60,6 +62,12 @@ field: var-bits \ potential values
 field: var-wheninst \ linked list of constraints woken up when instantiated
 constant var-size
 
+: .v {: v -- :}
+    cr v .id ." : "
+    ." val=" v var-val @ .
+    ."  bits=" v var-bits @ hex.
+    ."  wheninst:" v var-wheninst @ .constraints ;
+
 : domain {: u1 u2 -- :}
     \ generate a constraint variable name ( -- var )
     \ with potential values [u1,u2]
@@ -68,23 +76,18 @@ constant var-size
     1 u2 1+ lshift 1- 1 u1 lshift 1- xor var var-bits !
     0 var var-wheninst ! ;
 
-: !var {: u var -- :}
+: !var ~~ {: u var -- :}
     \ instantiate var to u; throws iff var cannot be instantiated to u
     \ (not in the remaining values, or a constraint is not
     \ satisfiable)
     assert( u 64 u< )
-    var var-val @ dup 0>= swap u <> and failure and throw
-    var var-bits @ 1 u lshift and 0= failure and throw
+    var var-val @ dup 0>= swap u <> and if ~~ xxx failure throw then
+    var var-bits @ 1 u lshift and 0= failure and ~~ throw
     u var var-val !bt
     u var var var-wheninst @ instconstraints ;
 
 : constraint! ( xt var -- )
     var-wheninst insert-constraint ;
-
-: .v {: v -- :}
-    cr ." val=" v var-val @ .
-    ."  bits=" v var-bits @ hex.
-    ."  wheninst:" v var-wheninst @ .constraints ;
 
 \ labeling support
 
@@ -98,7 +101,7 @@ constant var-size
                 r@ failure <> r> and throw then
             1 rshift
         loop
-        drop failure throw
+        drop failure ~~ throw
     then ;
 
 \ some constraints:
@@ -116,9 +119,9 @@ constant var-size
     addr1 u1 th addr1 u+do
         i @ {: vari :}
         vari var <> if
-            vari var-val @ dup u = failure and throw ( val )
+            vari var-val @ dup u = failure and ~~ throw ( val )
             0< if ( ) \ not yet instantiated
-                1 u lshift vari var-bits @ 2dup and 0= failure and throw
+                1 u lshift vari var-bits @ 2dup and 0= failure and ~~ throw
                 xor dup pow2? if ( x ) \ only one bit set
                     ctz vari !var
                 else
@@ -134,7 +137,9 @@ constant var-size
 
 \ ...sum
 
-: arraysum-c {: u var addr1 u1 usum -- :}
+: arraysum-c ~~ {: u var addr1 u1 usum -- :}
+    \ with var set to u, deal with the constraint that the sum of the
+    \ variables in addr1 u1 equals usum.
     0 0 u1 0 +do ( usum1 var1 )
         addr1 i th @ {: vari :}
         vari var-val @ dup 0< if ( usum1 var1 vali )
@@ -145,7 +150,7 @@ constant var-size
             rot + swap
         then
     loop
-    usum rot - swap !var ;
+    usum rot - swap ~~ !var ;
 
 : arraysum ( addr u usum -- )
     >r 2dup r> [{: addr u usum :}d addr u usum arraysum-c ;]
@@ -243,7 +248,7 @@ A E J O S 38 5sum
                 [: Q
                     [: H
                         [: E
-                            [: printsolution failure throw ;]
+                            [: printsolution failure ~~ throw ;]
                             label ;]
                         label ;]
                     label ;]
@@ -255,3 +260,5 @@ A E J O S 38 5sum
 \ : test ( -- )
 \    A [: A .var failure throw ;] label ;
 
+: xxx1 ." tsp @: " tsp @ hex. A .v B .v C .v ;
+`xxx1 is xxx
