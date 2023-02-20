@@ -82,7 +82,7 @@ constant var-size
     \ satisfiable)
     assert( u 64 u< )
     var var-val @ dup 0>= swap u <> and if ~~ xxx failure throw then
-    var var-bits @ 1 u lshift and 0= failure and ~~ throw
+    var var-bits @ 1 u lshift ~~ and 0= failure and ~~ throw
     u var var-val !bt
     u var var var-wheninst @ instconstraints ;
 
@@ -150,7 +150,11 @@ constant var-size
             rot + swap
         then
     loop
-    usum rot - swap ~~ !var ;
+    dup if
+        usum rot - swap ~~ !var
+    else
+        drop usum <> if failure ~~ throw then
+    then ;
 
 : arraysum ( addr u usum -- )
     >r 2dup r> [{: addr u usum :}d addr u usum arraysum-c ;]
