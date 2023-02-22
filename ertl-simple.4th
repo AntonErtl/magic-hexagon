@@ -50,6 +50,11 @@ create occupationmap 20 allot
                        cr      H .. I .. J .. K .. L ..
                        cr ."   " M .. N .. O .. P ..
                        cr ."     " Q .. R .. S .. cr
+                       \ uncomment the next four lines to stop after 1 solution
+                       \ rdrop rdrop rdrop rdrop rdrop rdrop rdrop unloop
+                       \ rdrop rdrop rdrop unloop rdrop rdrop unloop
+                       \ rdrop rdrop unloop rdrop rdrop unloop
+                       \ rdrop rdrop unloop rdrop unloop exit 
                       then
                      then
                     >occupy
