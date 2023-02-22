@@ -1,0 +1,385 @@
+From anton Mon Feb 20 23:42:22 2023
+X-newsreader: xrn 10.11
+From: anton@mips.complang.tuwien.ac.at (Anton Ertl)
+Subject: Re: Magic Hexagon
+Path: mips.complang.tuwien.ac.at!anton
+Newsgroups: comp.lang.forth
+References: <7e7a9acd-81f6-4022-b12a-753f3b418308n@googlegroups.com>
+Organization: Institut fuer Computersprachen, Technische Universitaet Wien
+Date: Mon, 20 Feb 2023 21:25:50 GMT
+Message-ID: <2023Feb20.222550@mips.complang.tuwien.ac.at>
+
+"minf...@arcor.de" <minforth@arcor.de> writes:
+>Another while-away-your-afternoon-teatime puzzle:
+>
+>Place the integers 1..19 in the following Magic Hexagon of rank 3 
+>__A_B_C__
+>_D_E_F_G_
+>H_I_J_K_L
+>_M_N_O_P_
+>__Q_R_S__
+>so that the sum of all numbers in a straight line (horizontal and diagonal)
+>is equal to 38.
+>
+>It is said that this puzzle is almost impossibly hard to solve manually.
+
+According to <https://en.wikipedia.org/wiki/Magic_hexagon>:
+
+|The order-3 magic hexagon has been published many times as a 'new'
+|discovery. An early reference, and possibly the first discoverer, is
+|Ernst von Haselberg (1887).
+
+I guess  that von Haselberg did it manually.
+
+Anyway, unlike Marcel Hendrix I could not resist and implemented a
+simple constraint-satisfaction problem framework and the magic hexagon
+on top of it.
+
+You can find the code at
+<https://github.com/AntonErtl/magic-hexagon/blob/main/magichex.4th>
+
+There is about 170 lines for the framework, and another 90 for the
+magic hexagon problem (all including comments and some debugging
+words).  I only implemented the constraints ALLDIFFERENT and ARRAYSUM
+(the only ones needed for the magic hexagon).  The result produces all
+twelve solutions (which are rotations and mirror images of one
+solution); I was too lazy to implement and use the less-than
+constraint necessary to exclude the rotations and mirror image.
+
+The central data structure is the constrained variable:
+
+0
+field: var-val  \ value 0-63 if instantiated, negative if not
+field: var-bits \ potential values
+field: var-wheninst \ linked list of constraints woken up when instantiated
+constant var-size
+
+"Instantiated" is logic programming jargon and means that the variable
+has one value, rather than waiting for one.
+
+Such a variable can only hold values in the range 0-63 (with 8-byte
+cells).  VAR-BITS is a cell with one bit for each potential value; a
+bit is clear if it is known that the variable cannot take on the value
+represented by that bit.  If only one bit is set, the variable is
+instantiated to the value specified by that bit.  It's not clear if
+VAR-BITS really helps for the Magic Hexagon with the current
+constraint implementations (only ALLDIFFERENT actually uses VAR-BITS);
+eliminating it an all that's related would make the framework smaller
+and more general (no need to limit yourself to values 0-63).
+Alternatively, a more general framework would have allow arbitrarily
+large VAR-BITS, to support more values.
+
+I have implemented the ARRAYSUM constraint as doing nothing until
+all-but-one variable are instantiated; then the last variable is
+computed from the others.  A more sophisticated ARRAYSUM would compute
+bounds of the variables from the bounds of the other variables, which
+might prune the search tree earlier.
+
+The other interesting part is the backtracking: Backtracking itself is
+performed by performing FAILURE THROW.  To have a place to backtrack
+to, you first LABEL a variable: LABEL instantiates the variable to one
+of its potential values; when it CATCHes a FAILURE, it UNDOes all the
+changes to cells recorded on the trail stack; in order to be able to
+do that, we store values into cells with !BT (instead of just !),
+which records the address and old value of the cell on the trail
+stack.
+
+LABEL is used as follows:
+
+  <var> [: <code> ;] label
+
+which means that <var> is instantiated, and then <code> is called,
+which is currently expected to FAILURE THROW eventually (possibly
+after printing or otherwise recording a solution).
+
+This code uses several Gforth features.  I find the use of closures
+especially notable: They are used to transfer data from the constraint
+creation to the run-time.  E.g., with
+
+create vars
+A , B , C , D , E , F , G , H , I , J , K , L , M , N , O , P , Q , R , S ,
+vars 19 alldifferent
+
+we declare that variables A..S all have different values.  The
+definition of ALLDIFFERENT is:
+
+: alldifferent ( addr u -- )
+    2dup [d:d alldifferent-c ;]
+    rot rot array-constraint! ;
+
+ALLDIFFERENT-C ( u1 var addr u -- ) is the core of the constraint
+action that is called when one of the variables in the constraint is
+instantiated; it gets U VAR passed as parameter, but for ADDR1 U1 it
+needs the data ADDR u passed to ALLDIFFERENT, and that is achieved
+through the closure [d:d ... ;] : This passes two cells from the time
+when ALLDIFFERENT runs to the time when the xt for the closure is
+EXECUTEd.  You can do that in other ways in Forth, but using a closure
+here is substantially more convenient.  Well, actually, using run-time
+code generation would be similarly convenient (and demonstrates other
+Gforth features:-):
+
+: alldifferent {: addr u -- :}
+    :noname ]] addr u alldifferent-c ; [[
+    addr u arrayconstraint! ;
+
+Enough for one evening, performance results tomorrow.
+
+- anton
+-- 
+M. Anton Ertl  http://www.complang.tuwien.ac.at/anton/home.html
+comp.lang.forth FAQs: http://www.complang.tuwien.ac.at/forth/faq/toc.html
+     New standard: https://forth-standard.org/
+   EuroForth 2022: https://euro.theforth.net
+
+
+From anton Tue Feb 21 17:54:11 2023
+X-newsreader: xrn 10.11
+From: anton@mips.complang.tuwien.ac.at (Anton Ertl)
+Subject: Re: Magic Hexagon
+Path: mips.complang.tuwien.ac.at!anton
+Newsgroups: comp.lang.forth
+References: <7e7a9acd-81f6-4022-b12a-753f3b418308n@googlegroups.com> <2023Feb20.222550@mips.complang.tuwien.ac.at>
+Organization: Institut fuer Computersprachen, Technische Universitaet Wien
+Date: Tue, 21 Feb 2023 15:37:34 GMT
+Message-ID: <2023Feb21.163734@mips.complang.tuwien.ac.at>
+
+anton@mips.complang.tuwien.ac.at (Anton Ertl) writes:
+>You can find the code at
+><https://github.com/AntonErtl/magic-hexagon/blob/main/magichex.4th>
+
+You can now also find minforth's program, Ahmed Melahi's program and a
+75-line program I wrote that uses the same approach as my
+SEND+MORE=MONEY program at
+<https://github.com/AntonErtl/magic-hexagon>.
+
+>Enough for one evening, performance results tomorrow.
+
+Here are the results for gforth-fast (development) on a Ryzen 5800X:
+
+for i in "bye" "include ~/forth/magic-hexagon/ertl-simple.4th mhex bye" "include ~/forth/magic-hexagon/melahi.4th bye" "include ~/forth/magic-hexagon/magichex.4th labeling bye"; do LC_NUMERIC=prog perf stat -e cycles:u -e instructions:u gforth-fast -e "warnings off" -e "$i" >/dev/null; done
+
+ overhead    ertl-simple       melahi       magichex
+ 25_905_373   53_619_662  115_022_609  1_246_546_909 cycles:u      
+ 70_131_630  112_618_256  270_913_299  3_057_748_466 instructions:u
+0.007722082  0.013866993  0.027026899    0.265033371 seconds time elapsed
+
+In this case the additional effort for the more sophisticated approach
+with the constraint-propagation framework (magichex) has not paid off.
+Admittedly magichex does not eliminate rotated and mirrored solutions
+and so produces 12 solutions, but the slowdown is by more than a
+factor of 12.  Maybe if we added even more sophistication; I have some
+ideas in that direction (let ARRAYSUM compute upper and lower bounds
+on the variables and propagate that), but I won't find the time to
+implement them.
+
+Looking at the coverage results, we see for magichex the following
+interesting details:
+
+gforth coverage.fs ~/forth/magic-hexagon/magichex.4th -e "labeling cr bw-cover .coverage bye"
+
+: alldifferent-c ( 297512)  {: u var addr1 u1 -- :}
+ ( 297512)     \ in the variables in addr1 u1, var has been instantiated to u
+ ( 297512)     addr1 u1 th addr1 u+do ( 5496662) 
+ ( 5496662)         i @ {: vari :}
+ ( 5496662)         vari var <> if ( 5212205) 
+ ( 5212205)             vari var-val @ dup u = if ( 17577)  failure throw then ( 5194628)  ( val )
+ ( 5194628)             0< if ( 2552422) \ not yet instantiated
+ ( 2552422)                 1 u lshift vari var-bits @ 2dup and 0= if ( 0)  failure throw then ( 2552422) 
+ ( 2552422)                 xor dup pow2? if ( 0)  ( x ) \ only one bit set
+ ( 0)                     ctz vari !var
+ ( 0)                 else ( 2552422) 
+ ( 2552422)                     vari var-bits !bt
+ ( 2552422)                 then ( 2552422)  ( )
+ ( 2552422)             then ( 5194628) 
+ ( 5194628)         then ( 5479085) 
+ ( 5479085)     1 cells +loop ( 279935)  ( 279935)  ;    
+...
+: arraysum-c ( 2702304)  {: u var addr1 u1 usum -- :}
+ ( 2702304)     \ with var set to u, deal with the constraint that the sum of the
+ ( 2702304)     \ variables in addr1 u1 equals usum.
+ ( 2702304)     0 0 u1 0 +do ( 8429715)  ( usum1 var1 )
+ ( 8429715)         addr1 i th @ {: vari :}
+ ( 8429715)         vari var-val @ dup 0< if ( 3945022)  ( usum1 var1 vali )
+ ( 3945022)             drop if ( 1467519)  ( usum1 ) \ constraint has >1 free variables, do nothing
+ ( 1467519)                 drop unloop exit then ( 2477503) 
+ ( 2477503)             vari
+ ( 2477503)         else ( 4484693) 
+ ( 4484693)             rot + swap
+ ( 4484693)         then ( 6962196) 
+ ( 6962196)     loop ( 1234785)  ( 1234785) 
+ ( 1234785)     dup if ( 1009984) 
+ ( 1009984)         usum rot - swap !var
+ ( 190532)     else ( 224801) 
+ ( 224801)         drop usum <> if ( 0)  failure throw then ( 224801) 
+ ( 224801)     then ( 415333)  ;
+...
+: labeling ( 1)  ( -- )
+ ( 1)     \ start with the corner variables in 3sums
+ ( 1)     \ B G P R N D follow from the 3sum constraints
+ ( 1)     \ then label one other 4sum variable: E
+ ( 1)     \ I N O K F J follow from the constraints
+ ( 1)     [: ( 1)  A
+ ( 1)         [: ( 19)  C
+ ( 19)             [: ( 180)  L
+ ( 180)                 [: ( 1760)  S
+ ( 1760)                     [: ( 11176)  Q
+ ( 11176)                         [: ( 45752)  H
+ ( 45752)                             [: ( 30504)  E
+ ( 30504)                                 [: ( 12)  printsolution failure throw ;]
+ ( 30504)                                 label ;]
+ ( 45752)                             label ;]
+ ( 11176)                         label ;]
+ ( 1760)                     label ;]
+ ( 180)                 label ;]
+ ( 19)             label ;]
+ ( 1)         label ;]
+ ( 1)     catch dup failure <> and throw
+ ( 1)     ." no (more) solutions" cr ;
+
+In particular, we see that there are 0 cases where the domain of a
+variable is reduced by ALLDIFFERENT so much that the variable is
+instantiated (the "0" lines in ALLDIFFERENT-C), so the tree is not
+pruned faster with this constraint-propagation approach than with the
+manual ertl-simple.4th.
+
+For comparison:
+
+gforth coverage.fs ~/forth/magic-hexagon/ertl-simple.4th -e "mhex cr bw-cover .coverage bye"
+
+...
+: mhex ( 1)  ( -- )
+ ( 1)  \ SEND+MORE=MONEY
+ ( 1)  occupationmap 20 erase
+ ( 1)  try< ( 19)  ( 19)  {: A :}
+ ( 19)   try< ( 361)  ( 342)  {: C :} A C < if ( 171) 
+ ( 171)    38 A - C - occupy< ( 94)  {: B :}
+ ( 94)     try< ( 1786)  ( 1508)  {: L :} A L < if ( 802) 
+ ( 802)      38 C - L - occupy< ( 694)  {: G :}
+ ( 694)       try< ( 13186)  ( 9734)  {: S :} A S < if ( 5824) 
+ ( 5824)        38 L - S - occupy< ( 3742)  {: P :}
+ ( 3742)         try< ( 71098)  ( 45099)  {: Q :} A Q < if ( 27954) 
+ ( 27954)          38 S - Q - occupy< ( 14499)  {: R :}
+ ( 14499)           try< ( 275481)  ( 146172)  {: H :} A H < if ( 92817)  C H < if ( 23637) 
+ ( 23637)            38 Q - H - occupy< ( 12374)  {: M :}
+ ( 12374)             38 H - A - occupy< ( 2606)  {: D :}
+ ( 2606)              try< ( 49514)  ( 18370)  {: E :}
+ ( 18370)               38 D - E - G - occupy< ( 6063)  {: F :}
+ ( 6063)                38 B - F - P - occupy< ( 2326)  {: K :}
+ ( 2326)                 38 G - K - R - occupy< ( 251)  {: O :}
+ ( 251)                  38 P - O - M - occupy< ( 82)  {: N :}
+ ( 82)                   38 R - N - D - occupy< ( 31)  {: I :}
+ ( 31)                    38 M - I - B - E = if ( 31) 
+ ( 31)                     38 A - E - O - S - occupy< ( 1)  {: J :}
+ ( 1)                      H I + J + K + L + 38 = if ( 1) 
+ ( 1)                       C F + J + N + Q + 38 = if ( 1) 
+ ( 1)                        cr ."     " A .. B .. C ..
+ ( 1)                        cr ."   " D .. E .. F .. G ..
+ ( 1)                        cr      H .. I .. J .. K .. L ..
+ ( 1)                        cr ."   " M .. N .. O .. P ..
+ ( 1)                        cr ."     " Q .. R .. S .. cr
+ ( 1)                       then ( 1) 
+ ( 1)                      then ( 1) 
+ ( 1)                     >occupy ( 31) 
+ ( 31)                    then ( 31) 
+ ( 31)                   >occupy ( 82) 
+ ( 82)                  >occupy ( 251) 
+ ( 251)                 >occupy ( 2326) 
+ ( 2326)                >occupy ( 6063) 
+ ( 6063)               >occupy ( 18370) 
+ ( 18370)              >try ( 49514)  ( 2606) 
+ ( 2606)             >occupy ( 12374) 
+ ( 12374)            >occupy ( 23637) 
+ ( 23637)           then ( 92817)  then ( 146172)  >try ( 275481)  ( 14499) 
+ ( 14499)          >occupy ( 27954) 
+ ( 27954)         then ( 45099)  >try ( 71098)  ( 3742) 
+ ( 3742)        >occupy ( 5824) 
+ ( 5824)       then ( 9734)  >try ( 13186)  ( 694) 
+ ( 694)      >occupy ( 802) 
+ ( 802)     then ( 1508)  >try ( 1786)  ( 94) 
+ ( 94)    >occupy ( 171) 
+ ( 171)   then ( 342)  >try ( 361)  ( 19) 
+ ( 19)  >try ( 19)  ( 1)  ;
+
+- anton
+-- 
+M. Anton Ertl  http://www.complang.tuwien.ac.at/anton/home.html
+comp.lang.forth FAQs: http://www.complang.tuwien.ac.at/forth/faq/toc.html
+     New standard: https://forth-standard.org/
+   EuroForth 2022: https://euro.theforth.net
+
+
+From anton Wed Feb 22 10:32:43 2023
+X-newsreader: xrn 10.11
+From: anton@mips.complang.tuwien.ac.at (Anton Ertl)
+Subject: Re: Magic Hexagon
+Path: mips.complang.tuwien.ac.at!anton
+Newsgroups: comp.lang.forth
+References: <7e7a9acd-81f6-4022-b12a-753f3b418308n@googlegroups.com> <2023Feb20.222550@mips.complang.tuwien.ac.at> <2023Feb21.163734@mips.complang.tuwien.ac.at> <37f0f9dd-9498-4411-883b-28d91fa5cbafn@googlegroups.com>
+Organization: Institut fuer Computersprachen, Technische Universitaet Wien
+Date: Wed, 22 Feb 2023 08:25:48 GMT
+Message-ID: <2023Feb22.092548@mips.complang.tuwien.ac.at>
+
+Ahmed MELAHI <ahmed.melahi@univ-bejaia.dz> writes:
+>Hereafter, I modified the program so that :
+>       - problem of marking and umarking is fixed
+>       - the program now can get the 12 solutions =20
+>       - we can get just one solution=20
+>tested with gforth:=20
+>      - just one solution : 0.07745 second
+>     - 12 solutions :    0.243362 seconds
+>tested with gforth-fast:
+>    - just one solution: 0.074116 second
+>    - 12 solutions: 0.129788 seconds
+
+On an Ryzen 5800X with gforth-fast:
+
+ overhead   ertl-simple      melahi     melahi2       e-s A       e-s B
+ 25_905_373  53_619_662 115_022_609  40_282_001  32_745_355  33_870_576 c
+ 70_131_630 112_618_256 270_913_299  99_171_877  81_093_523  83_096_994 i
+0.007722082 0.013866993 0.027026899 0.011071537 0.009659665 0.009792036 s
+
+             cycles:u                                                    
+             instructions:u            #    2.45  insn per cycle         
+        seconds time elapsed
+
+
+"overhead" is just the startup overhead of gforth-fast.
+"melahi2"  is your new version.
+"e-s A"    is ertl-simple modified to just stop after finding the solution
+"e-s B"    is e-s A modified to not eliminated rotated and mirrored sols.
+
+<https://github.com/AntonErtl/magic-hexagon/blob/main/ertl-simple.4th>
+now contains the stopping part as commented-out code.
+
+"e-s B", also with the stopping part commented out is available on
+<https://github.com/AntonErtl/magic-hexagon/blob/main/ertl-simple-all.4th>
+
+Note that ertl-simple produces only one solution even if you let it
+run to the end: It checks that A < C,L,S,Q,H to eliminate rotated
+solutions.  and that C < H to eliminate the mirrored solutions.  This
+obviously reduces the time to explore the whole search space (because
+the search space is smaller); to check whether and how much it reduces
+the time to find one solution, I commented out these checks, giving
+e-s B; it's slightly slower than e-s A.
+
+Here you find a comparison of the all-solutions performance with
+rotated and mirrored solutions:
+
+ overhead         e-s B     melahi2      magichex
+ 26_210_741 164_908_219 207_753_513 1_255_498_158 cycles:u
+ 70_131_592 252_011_139 501_578_813 3_057_748_265 instructions:u
+0.007824568 0.037550770 0.046885166   0.267070972 seconds time elapsed
+
+Interesting difference in instructions per cycle (IPC) between e-s B
+(1.53) and melahi2 (2.41).  Typical code without particular dependence
+problems has an IPC more like melahi2; however, I don't see an obvious
+dependence problem in ertl-simple.  Looking at the performance counter
+results, branch misses contribute significantly, but less than half of
+the difference.
+
+- anton
+-- 
+M. Anton Ertl  http://www.complang.tuwien.ac.at/anton/home.html
+comp.lang.forth FAQs: http://www.complang.tuwien.ac.at/forth/faq/toc.html
+     New standard: https://forth-standard.org/
+   EuroForth 2022: https://euro.theforth.net
