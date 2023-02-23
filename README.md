@@ -60,7 +60,11 @@ An improved program by Ahmed Melahi.  Stops after the first solution,
 but you can comment that part out.  Does not contain code for
 suppressing rotated and mirrored solutions.
 
-### minforth.4th
+### `melahi3.4th`
+
+An optimized variant of `melahi2.4th' by Ahmed Melahi.
+
+### `minforth.4th`
 
 A program by minforth that first generates a permutation before
 testing any part of it.  Marcel Hendrix estimated that this program
