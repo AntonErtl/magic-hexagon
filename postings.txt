@@ -383,3 +383,45 @@ M. Anton Ertl  http://www.complang.tuwien.ac.at/anton/home.html
 comp.lang.forth FAQs: http://www.complang.tuwien.ac.at/forth/faq/toc.html
      New standard: https://forth-standard.org/
    EuroForth 2022: https://euro.theforth.net
+
+
+X-newsreader: xrn 10.11
+From: anton@mips.complang.tuwien.ac.at (Anton Ertl)
+Subject: Re: Magic Hexagon
+Path: mips.complang.tuwien.ac.at!anton
+Newsgroups: comp.lang.forth
+References: <7e7a9acd-81f6-4022-b12a-753f3b418308n@googlegroups.com> <2023Feb20.222550@mips.complang.tuwien.ac.at> <2023Feb21.163734@mips.complang.tuwien.ac.at> <37f0f9dd-9498-4411-883b-28d91fa5cbafn@googlegroups.com> <2023Feb22.092548@mips.complang.tuwien.ac.at> <29ace813-b44e-4591-bbc0-9ddfb0e6f542n@googlegroups.com>
+Organization: Institut fuer Computersprachen, Technische Universitaet Wien
+Date: Thu, 23 Feb 2023 16:26:49 GMT
+Message-ID: <2023Feb23.172649@mips.complang.tuwien.ac.at>
+
+Ahmed MELAHI <ahmed.melahi@univ-bejaia.dz> writes:
+>Here, The last version of the program, I removed superfluous consecutive unmarks and and marks that consumed time.
+>I tested it on my PC:  Intel(R) Celeron(R) CPU 3867U @ 1.80GHz   1.80 GHz, 12GB:
+>           - gforth-fast:
+>                   - 1 solution: about 2.3 ms (the same result if I use A<C,...)
+>                   - 12 solutions (all): 70 ms
+>           - gforth:
+>                   - 1 solution: 5 ms
+>                   - 12 solutions: 146 ms
+
+Again gforth-fast on Ryzen 5800X:
+
+ overhead         e-s A       e-s B     melahi3
+ 25_905_373  32_745_355  33_870_576  35_218_929 cycles:u       
+ 70_131_630  81_093_523  83_096_994  89_686_731 instructions:u 
+0.007722082 0.009659665 0.009792036 0.010334186 seconds time elapsed
+
+"overhead" is just the startup overhead of gforth-fast.
+"melahi3"  is your newest version.
+"e-s A"    is ertl-simple modified to just stop after finding the solution
+"e-s B"    is e-s A modified to not eliminated rotated and mirrored sols.
+
+They are very close to each other now.
+
+- anton
+-- 
+M. Anton Ertl  http://www.complang.tuwien.ac.at/anton/home.html
+comp.lang.forth FAQs: http://www.complang.tuwien.ac.at/forth/faq/toc.html
+     New standard: https://forth-standard.org/
+   EuroForth 2022: https://euro.theforth.net
