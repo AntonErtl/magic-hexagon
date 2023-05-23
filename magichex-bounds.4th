@@ -116,6 +116,12 @@ constant var-size
         var var-whenbounds @ doconstraints then
     u var var var-wheninst @ instconstraints ;
 
+: inst? ( var -- )
+    \ if var is instantiated, do instconstraints
+        var var-lo @ var var-hi @ = ?of
+            var var-lo @ var var var-wheninst @ instconstraints endof
+    
+
 : !<> {: u var -- :}
     \ var<>u, i.e., eliminate u from the domain of var
     var var-lo @ {: vlo :}
@@ -130,11 +136,10 @@ constant var-size
         case
             vlo u = ?of u 1+ var !lo drop endof
             vhi u = ?of u 1- var !hi drop endof
-        endcase
+        0 endcase
         var var-whenbounds @ doconstraints
-        var var-lo @ var var-hi @ = ?of
-            var var-lo @ var var var-wheninst @ instconstraints endof
-        0 endcase ;
+        var inst?
+    0 endcase ;
 
 \ labeling support
 
@@ -174,14 +179,27 @@ constant var-size
 
 : arraysum-c {: vars u usum -- :}
     \ deal with the constraint that the sum of the variables in vars u
-    \ equals usum.
-    u 2* cells allocate throw dup u cells + {: los his :}
+    \ equals usum; this results in, for all i:
+    \ vihi=<usum-v1lo-...-vulo+vilo (sumlo=v1lo+...vulo)
+    \ vilo>=usum-v1hi-...-vuhi+vihi (sumhi=v1hi+...vuhi)
     0 0 u 0 ?do ( sumlo sumhi )
         vars i th @ {: v :}
-        v var-lo @ dup los i th ! rot +
-        v var-hi @ dup his i th ! rot +
+        v var-lo @ rot +
+        v var-hi @ rot +
     loop
-    u 0 ?do ( sumlo sumhi )
+    begin
+        false -rot u 0 ?do {: sumlo sumhi :}
+            vars i th @ {: v :}
+            var var-lo @ {: vlo :}
+            var var-hi @ {: vhi :}
+            usum sumlo - vlo + v !hi or
+            usum sumhi - vhi + v !lo or
+            \ compute new sumlo and sumhi:
+            sumlo vlo - v var-lo @ +
+            sumhi vhi - v var-hi @ +
+        loop
+    rot 0= until
+            
         
     
 
