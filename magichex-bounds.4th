@@ -78,7 +78,9 @@ constant var-size
         ." lo,hi=[" v var-lo @ 0 .r ." ," v var-hi @ 0 .r ." ]"
     then
     ."  bits=" v var-bits @ hex.
-    ."  wheninst:" v var-wheninst @ .constraints ;
+    ."  wheninst: " v var-wheninst @ .constraints
+    ."  whenbounds: " v var-whenbounds @ .constraints
+;
 
 : domain {: u1 u2 -- :}
     \ generate a constraint variable name ( -- var )
@@ -146,12 +148,13 @@ constant var-size
 : label {: var xt -- :}
     \ try out the first possible value for var; on CATCHing FAILURE,
     \ try the next, and so on; when no value is left, throw FAILURE.
-    var var-bits @ var var-hi @ 1+ var var-lo @ +do
-        dup 1 i lshift and if ( x )
+    var var-bits @ {: vbits :}
+    var var-hi @ 1+ var var-lo @ +do
+        vbits 1 i lshift and if
             tsp @ xt i var [: !var execute ;] catch >r 2drop drop undo
             r@ failure <> r> and throw then
     loop
-    drop failure throw ;
+    failure throw ;
 
 \ some constraints:
 
@@ -193,7 +196,7 @@ constant var-size
         v var-lo @ {: vlo :}
         v var-hi @ {: vhi :}
         usum sumlo - vlo + v !hi
-        usum sumhi - vhi + v !lo or dup if
+        usum sumhi - vhi + v !lo or if
             v doboundsconstraints
             \ this constraint has been rerun, too, so no need to continue
             unloop exit then
