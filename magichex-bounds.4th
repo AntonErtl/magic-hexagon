@@ -116,12 +116,12 @@ constant var-size
         var var-whenbounds @ doconstraints then
     u var var var-wheninst @ instconstraints ;
 
-: doboundsconstrains {: v -- :}
+: doboundsconstraints {: v -- :}
     \ run the bounds constraints for v; if instantiated, run
     \ instconstraints
     v var-whenbounds @ doconstraints
     v var-lo @ v var-hi @ = if
-        var var-lo @ var var var-wheninst @ instconstraints then ;
+        v var-lo @ v v var-wheninst @ instconstraints then ;
 
 : !<> {: u var -- :}
     \ var<>u, i.e., eliminate u from the domain of var
@@ -190,8 +190,8 @@ constant var-size
     {: sumlo sumhi :}
     u 0 ?do
         vars i th @ {: v :}
-        var var-lo @ {: vlo :}
-        var var-hi @ {: vhi :}
+        v var-lo @ {: vlo :}
+        v var-hi @ {: vhi :}
         usum sumlo - vlo + v !hi
         usum sumhi - vhi + v !lo or dup if
             v doboundsconstraints
@@ -275,7 +275,7 @@ C F J N Q 38 5sum
 A E J O S 38 5sum
 
 : .var ( var -- )
-    var-val @ 4 .r ;
+    var-lo @ 4 .r ;
 
 : printsolution ( -- )
     cr ."     " A .var B .var C .var
