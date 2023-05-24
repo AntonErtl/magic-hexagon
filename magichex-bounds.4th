@@ -116,11 +116,12 @@ constant var-size
         var var-whenbounds @ doconstraints then
     u var var var-wheninst @ instconstraints ;
 
-: inst? ( var -- )
-    \ if var is instantiated, do instconstraints
-        var var-lo @ var var-hi @ = ?of
-            var var-lo @ var var var-wheninst @ instconstraints endof
-    
+: doboundsconstrains {: v -- :}
+    \ run the bounds constraints for v; if instantiated, run
+    \ instconstraints
+    v var-whenbounds @ doconstraints
+    v var-lo @ v var-hi @ = if
+        var var-lo @ var var var-wheninst @ instconstraints then ;
 
 : !<> {: u var -- :}
     \ var<>u, i.e., eliminate u from the domain of var
@@ -137,8 +138,7 @@ constant var-size
             vlo u = ?of u 1+ var !lo drop endof
             vhi u = ?of u 1- var !hi drop endof
         0 endcase
-        var var-whenbounds @ doconstraints
-        var inst?
+        var doboundsconstraints
     0 endcase ;
 
 \ labeling support
@@ -187,40 +187,18 @@ constant var-size
         v var-lo @ rot +
         v var-hi @ rot +
     loop
-    begin
-        false -rot u 0 ?do {: sumlo sumhi :}
-            vars i th @ {: v :}
-            var var-lo @ {: vlo :}
-            var var-hi @ {: vhi :}
-            usum sumlo - vlo + v !hi or
-            usum sumhi - vhi + v !lo or
-            \ compute new sumlo and sumhi:
-            sumlo vlo - v var-lo @ +
-            sumhi vhi - v var-hi @ +
-        loop
-    rot 0= until
-            
-        
-    
-
-: arraysum-c {: u var addr1 u1 usum -- :}
-    \ with var set to u, deal with the constraint that the sum of the
-    \ variables in addr1 u1 equals usum.
-    0 0 u1 0 +do ( usum1 var1 )
-        addr1 i th @ {: vari :}
-        vari var-val @ dup 0< if ( usum1 var1 vali )
-            drop if ( usum1 ) \ constraint has >1 free variables, do nothing
-                drop unloop exit then
-            vari
-        else
-            rot + swap
-        then
-    loop
-    dup if
-        usum rot - swap !var
-    else
-        drop usum <> if failure throw then
-    then ;
+    {: sumlo sumhi :}
+    u 0 ?do
+        vars i th @ {: v :}
+        var var-lo @ {: vlo :}
+        var var-hi @ {: vhi :}
+        usum sumlo - vlo + v !hi
+        usum sumhi - vhi + v !lo or dup if
+            v doboundsconstraints
+            \ this constraint has been rerun, too, so no need to continue
+            unloop exit then
+        \ var-lo and var-hi have not changed, so no need to recompute sums
+    loop ;
 
 : arraysum ( addr u usum -- )
     >r 2dup r> [{: addr u usum :}d addr u usum arraysum-c ;]
