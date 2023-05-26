@@ -95,15 +95,17 @@ constant var-size
 : !lo {: u var -- flag :}
     \ set the lower bound of var to u if it is lower; flag is true if
     \ the lower bound is changed.
-    u var var-lo @ > dup if
-        1 u lshift negate var var-bits @ and ctz var var-lo !bt
+    u 0 max 63 min {: u1 :}
+    u1 var var-lo @ > dup if
+        1 u1 lshift negate var var-bits @ and ctz var var-lo !bt
     then ;
 
 : !hi {: u var -- flag :}
     \ set the upper bound of var if the upper bound is higher; flag is
     \ true if the upper bound is changed.
-    u var var-hi @ < dup if
-        1 u 1+ lshift 1- var var-bits @ and log2 var var-hi !bt
+    u 0 max 63 min {: u1 :}
+    u1 var var-hi @ < dup if
+        1 u1 1+ lshift 1- var var-bits @ and log2 var var-hi !bt
     then ;
 
 : !var {: u var -- :}
@@ -294,18 +296,17 @@ A E J O S 38 5sum
     \ I N O K F J follow from the constraints
     [: A
         [: C
-            [: A .v B .v C .v ;]
-            \ [: L
-            \     [: S
-            \         [: Q
-            \             [: H
-            \                 [: E
-            \                     [: printsolution failure throw ;]
-            \                     label ;]
-            \                 label ;]
-            \             label ;]
-            \         label ;]
-            \     label ;]
+            [: L
+                [: S
+                    [: Q
+                        [: H
+                            [: E
+                                [: printsolution failure throw ;]
+                                label ;]
+                            label ;]
+                        label ;]
+                    label ;]
+                label ;]
             label ;]
         label ;]
     catch dup failure <> and throw nothrow
