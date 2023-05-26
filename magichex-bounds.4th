@@ -151,8 +151,8 @@ constant var-size
     var var-bits @ {: vbits :}
     var var-hi @ 1+ var var-lo @ +do
         vbits 1 i lshift and if
-            tsp @ xt i var [: !var execute ;] catch >r 2drop drop undo
-            r@ failure <> r> and throw then
+            tsp @ xt i var [: !var execute  ;] catch >r 2drop drop undo
+            ( r@ failure <> ) true r> and throw then
     loop
     failure throw ;
 
@@ -205,7 +205,7 @@ constant var-size
 
 : arraysum ( addr u usum -- )
     >r 2dup r> [{: addr u usum :}d addr u usum arraysum-c ;]
-    rot rot ['] var-wheninst array-constraint! ;
+    rot rot ['] var-whenbounds array-constraint! ;
 
 : 3sum ( v1 v2 v3 usum -- )
     align here 2>r , , , 2r> 3 rot arraysum ;
@@ -293,19 +293,20 @@ A E J O S 38 5sum
     \ then label one other 4sum variable: E
     \ I N O K F J follow from the constraints
     [: A
-        [: C
-            [: L
-                [: S
-                    [: Q
-                        [: H
-                            [: E
-                                [: printsolution failure throw ;]
-                                label ;]
-                            label ;]
-                        label ;]
-                    label ;]
-                label ;]
-            label ;]
+        [: A .v B .v C .v ;]
+        \ [: C
+        \     [: L
+        \         [: S
+        \             [: Q
+        \                 [: H
+        \                     [: E
+        \                         [: printsolution failure throw ;]
+        \                         label ;]
+        \                     label ;]
+        \                 label ;]
+        \             label ;]
+        \         label ;]
+        \     label ;]
         label ;]
     catch dup failure <> and throw
     ." no (more) solutions" cr ;
