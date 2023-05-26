@@ -6,7 +6,7 @@
 
 \ value trail stack (records original value of changed cells)
 
-[undefined] trail-elements [if] 10000 constant trail-elements [then]
+[undefined] trail-elements [if] 1000000 constant trail-elements [then]
 
 trail-elements 2* cells allocate throw constant trail-stack
 variable tsp trail-stack trail-elements 2* cells + tsp !
@@ -151,8 +151,8 @@ constant var-size
     var var-bits @ {: vbits :}
     var var-hi @ 1+ var var-lo @ +do
         vbits 1 i lshift and if
-            tsp @ xt i var [: !var execute  ;] catch >r undo
-            r@ failure <> r> and throw then
+            tsp @ xt i var [: !var execute 0 0 0 ;] catch nothrow >r 2drop drop undo
+            r@ failure <> r> and throw nothrow then
     loop
     failure throw ;
 
@@ -293,20 +293,20 @@ A E J O S 38 5sum
     \ then label one other 4sum variable: E
     \ I N O K F J follow from the constraints
     [: A
-        [: A .v B .v C .v ;]
-        \ [: C
-        \     [: L
-        \         [: S
-        \             [: Q
-        \                 [: H
-        \                     [: E
-        \                         [: printsolution failure throw ;]
-        \                         label ;]
-        \                     label ;]
-        \                 label ;]
-        \             label ;]
-        \         label ;]
-        \     label ;]
+        [: C
+            [: A .v B .v C .v ;]
+            \ [: L
+            \     [: S
+            \         [: Q
+            \             [: H
+            \                 [: E
+            \                     [: printsolution failure throw ;]
+            \                     label ;]
+            \                 label ;]
+            \             label ;]
+            \         label ;]
+            \     label ;]
+            label ;]
         label ;]
-    catch dup failure <> and throw
+    catch dup failure <> and throw nothrow
     ." no (more) solutions" cr ;
