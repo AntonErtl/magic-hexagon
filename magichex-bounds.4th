@@ -205,9 +205,10 @@ constant var-size
         \ var-lo and var-hi have not changed, so no need to recompute sums
     loop ;
 
-: arraysum ( addr u usum -- )
-    >r 2dup r> [{: addr u usum :}d addr u usum arraysum-c ;]
-    rot rot ['] var-whenbounds array-constraint! ;
+: arraysum {: addr u usum -- :}
+    addr u usum [{: addr u usum :}d addr u usum arraysum-c ;] {: xt :}
+    xt addr u ['] var-whenbounds array-constraint!
+    addr u usum xt execute ;
 
 : 3sum ( v1 v2 v3 usum -- )
     align here 2>r , , , 2r> 3 rot arraysum ;
@@ -229,9 +230,10 @@ constant var-size
     r> if v1 doboundsconstraints then ;
 
 : #< ( v1 v2 -- )
-    2dup [d:d #<-c ;]
-    dup rot var-whenbounds insert-constraint
-    swap    var-whenbounds insert-constraint ;
+    2dup [d:d #<-c ;] {: xt :}
+    xt over  var-whenbounds insert-constraint
+    xt third var-whenbounds insert-constraint
+    #<-c ;
 
 \ Magic Hexagon specific stuff
 
@@ -278,21 +280,21 @@ create vars
 A , B , C , D , E , F , G , H , I , J , K , L , M , N , O , P , Q , R , S ,
 vars 19 alldifferent
 
-A B C 38 3sum
-Q R S 38 3sum
-A D H 38 3sum
-L P S 38 3sum
-C G L 38 3sum
-H M Q 38 3sum
+H I J K L 38 5sum
+C F J N Q 38 5sum
+A E J O S 38 5sum
 D E F G 38 4sum
 M N O P 38 4sum
 B E I M 38 4sum
 G K O R 38 4sum
 B F K P 38 4sum
 D I N R 38 4sum
-H I J K L 38 5sum
-C F J N Q 38 5sum
-A E J O S 38 5sum
+A B C 38 3sum
+Q R S 38 3sum
+A D H 38 3sum
+L P S 38 3sum
+C G L 38 3sum
+H M Q 38 3sum
 
 \ eliminate rotational symmetry
 A C #<
