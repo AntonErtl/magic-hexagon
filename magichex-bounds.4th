@@ -48,7 +48,7 @@ constant list-size
     repeat ;
 
 : insert-constraint {: xt listp -- :}
-    \ insert xt at in the list pointed to by listp
+    \ insert xt in the list pointed to by listp
     list-size allocate throw {: l :}
     listp @ l list-next !
     xt l list-constraint !
@@ -218,6 +218,21 @@ constant var-size
 : 5sum ( v1 v2 v3 v4 v5 usum -- )
     align here 2>r , , , , , 2r> 5 rot arraysum ;
 
+\ #<
+
+: #<-c {: v1 v2 -- :}
+    v1 var-hi @ 1-
+    v2 val-lo @ 1+
+    v1 !hi
+    v2 !lo
+    if v2 doboundsconstraints then
+    if v1 doboundsconstraints then ;
+
+: #< ( v1 v2 -- )
+    2dup [d:d #<-c ;]
+    dup rot var-whenbounds insert-constraint
+    swap    var-whenbounds insert-constraint ;
+
 \ Magic Hexagon specific stuff
 
 \ Newsgroups: comp.lang.forth
@@ -278,6 +293,15 @@ D I N R 38 4sum
 H I J K L 38 5sum
 C F J N Q 38 5sum
 A E J O S 38 5sum
+
+\ eliminate rotational symmetry
+A C #<
+A L #<
+A S #<
+A Q #<
+A H #<
+\ eliminate mirror symmetry
+C H #<
 
 : .var ( var -- )
     var-lo @ 4 .r ;
