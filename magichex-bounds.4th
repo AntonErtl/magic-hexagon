@@ -296,14 +296,16 @@ L P S 38 3sum
 C G L 38 3sum
 H M Q 38 3sum
 
-\ eliminate rotational symmetry
-A C #<
-A L #<
-A S #<
-A Q #<
-A H #<
-\ eliminate mirror symmetry
-C H #<
+[undefined] symsolutions [if]
+    \ eliminate rotational symmetry
+    A C #<
+    A L #<
+    A S #<
+    A Q #<
+    A H #<
+    \ eliminate mirror symmetry
+    C H #<
+[then]
 
 : .var {: v -- :}
     v var-lo @ v var-hi @ = if
