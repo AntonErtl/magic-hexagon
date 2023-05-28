@@ -305,8 +305,12 @@ A H #<
 \ eliminate mirror symmetry
 C H #<
 
-: .var ( var -- )
-    var-lo @ 4 .r ;
+: .var {: v -- :}
+    v var-lo @ v var-hi @ = if
+        v var-lo @ 4 .r
+    else
+        space v var-lo @ 0 .r ." -" v var-hi @ 0 .r
+    then ;
 
 : printsolution ( -- )
     cr ."     " A .var B .var C .var
