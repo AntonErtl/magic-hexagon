@@ -221,8 +221,8 @@ constant var-size
 \ #<
 
 : #<-c {: v1 v2 -- :}
-    v1 var-hi @ 1-
-    v2 var-lo @ 1+
+    v1 var-lo @ 1+
+    v2 var-hi @ 1-
     v1 !hi >r
     v2 !lo
     if v2 doboundsconstraints then
