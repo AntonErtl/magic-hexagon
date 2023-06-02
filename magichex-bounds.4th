@@ -153,7 +153,7 @@ constant var-size
     var var-bits @ {: vbits :}
     var var-hi @ 1+ var var-lo @ +do
         vbits 1 i lshift and if
-            tsp @ xt i var [: !var execute 0 0 0 ;] catch nothrow >r 2drop drop undo
+            tsp @ xt i var [: !var execute 0 0 0 ;] catch >r 2drop drop undo
             r@ failure <> r> and throw nothrow then
     loop
     failure throw ;
