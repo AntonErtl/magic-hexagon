@@ -425,3 +425,321 @@ M. Anton Ertl  http://www.complang.tuwien.ac.at/anton/home.html
 comp.lang.forth FAQs: http://www.complang.tuwien.ac.at/forth/faq/toc.html
      New standard: https://forth-standard.org/
    EuroForth 2022: https://euro.theforth.net
+
+From anton Wed May 31 11:43:13 2023
+X-newsreader: xrn 10.11
+From: anton@mips.complang.tuwien.ac.at (Anton Ertl)
+Subject: Re: Magic Hexagon
+Path: mips.complang.tuwien.ac.at!anton
+Newsgroups: comp.lang.forth
+References: <7e7a9acd-81f6-4022-b12a-753f3b418308n@googlegroups.com> <2023Feb20.222550@mips.complang.tuwien.ac.at> <2023Feb21.163734@mips.complang.tuwien.ac.at> <37f0f9dd-9498-4411-883b-28d91fa5cbafn@googlegroups.com> <2023Feb22.092548@mips.complang.tuwien.ac.at> <29ace813-b44e-4591-bbc0-9ddfb0e6f542n@googlegroups.com> <2023Feb23.172649@mips.complang.tuwien.ac.at> <ed2892e3-a25d-45ed-8cde-f8c08f02b122n@googlegroups.com>
+Organization: Institut fuer Computersprachen, Technische Universitaet Wien
+Date: Wed, 31 May 2023 09:18:24 GMT
+Message-ID: <2023May31.111824@mips.complang.tuwien.ac.at>
+
+Ahmed MELAHI <ahmed.melahi@univ-bejaia.dz> writes:
+>Here is the final version of the program magic_hexagon.
+>Here, there is no tables to fill, the search is applied directly.
+>The program is now reduced in size, and faster.
+
+I put it in
+<https://github.com/AntonErtl/magic-hexagon/blob/main/melahi4.4th>.
+
+Here are some results on a Ryzen 5800X:
+
+overhead    ertl-simple       e-s A     melahi3     melahi4
+ 25_618_534  52_989_008  32_745_355  34_748_825  32_780_729 cycles:u
+ 70_015_798 112_534_500  81_093_523  89_563_036  85_089_218 instructions:u
+0.007561816 0.013706553 0.009659665 0.009785266 0.009325339 seconds elapsed
+
+The programs are:
+
+"overhead"    is just the startup overhead of gforth-fast.
+"ertl-simple" finds the solution and proves that there is no other
+"e-s A"    is ertl-simple modified to just stop after finding the solution
+"melahi3"  is your previous version.
+"melahi4"  is your newest version
+
+The "e-s A" measurement is taken from my last rounds of measurements,
+everything else is measured again.
+
+- anton
+-- 
+M. Anton Ertl  http://www.complang.tuwien.ac.at/anton/home.html
+comp.lang.forth FAQs: http://www.complang.tuwien.ac.at/forth/faq/toc.html
+     New standard: https://forth-standard.org/
+   EuroForth 2022: https://euro.theforth.net
+
+
+From anton Wed May 31 23:07:57 2023
+X-newsreader: xrn 10.11
+From: anton@mips.complang.tuwien.ac.at (Anton Ertl)
+Subject: Re: Magic Hexagon
+Path: mips.complang.tuwien.ac.at!anton
+Newsgroups: comp.lang.forth
+References: <7e7a9acd-81f6-4022-b12a-753f3b418308n@googlegroups.com> <2023Feb20.222550@mips.complang.tuwien.ac.at>
+Organization: Institut fuer Computersprachen, Technische Universitaet Wien
+Date: Wed, 31 May 2023 20:07:29 GMT
+Message-ID: <2023May31.220729@mips.complang.tuwien.ac.at>
+
+anton@mips.complang.tuwien.ac.at (Anton Ertl) writes:
+>"minf...@arcor.de" <minforth@arcor.de> writes:
+>>Another while-away-your-afternoon-teatime puzzle:
+>>
+>>Place the integers 1..19 in the following Magic Hexagon of rank 3 
+>>__A_B_C__
+>>_D_E_F_G_
+>>H_I_J_K_L
+>>_M_N_O_P_
+>>__Q_R_S__
+>>so that the sum of all numbers in a straight line (horizontal and diagonal)
+>>is equal to 38.
+>>
+>>It is said that this puzzle is almost impossibly hard to solve manually.
+>
+>According to <https://en.wikipedia.org/wiki/Magic_hexagon>:
+>
+>|The order-3 magic hexagon has been published many times as a 'new'
+>|discovery. An early reference, and possibly the first discoverer, is
+>|Ernst von Haselberg (1887).
+>
+>I guess  that von Haselberg did it manually.
+>
+>Anyway, unlike Marcel Hendrix I could not resist and implemented a
+>simple constraint-satisfaction problem framework and the magic hexagon
+>on top of it.
+>
+>You can find the code at
+><https://github.com/AntonErtl/magic-hexagon/blob/main/magichex.4th>
+
+That framework just triggered constraints when a variable is
+instantiated (i.e., receives a value).  I have now extended it to work
+with bounds.  E.g., if we have variables A and C with the possible
+values
+
+A,C in [1,19]
+
+and we have a constraint
+
+A C #<  \ i.e., A<C
+
+then, if the constraint is value-triggered, it will only become active
+when A or C receive a value.  With a bounds-triggered constraint, the
+constraint can become active immediately, reducing the ranges of A and
+C to
+
+A in [1,18]
+C in [2,19]
+
+And whenever a bound of A or C changes, the constraint is triggered
+again and can reduce the range of the other variable.  One might make
+this more efficient by triggering the constraint only when the upper
+bound of C falls, or the lower bound of A rises, but for now I trigger
+it when either bound of either variable changes; triggering the
+constraint unnecessarily costs CPU time, but does not change the
+results.
+
+With the bounds-triggered constraints I have also implemented the #<
+constraint (which I did not implement as a value-triggered
+constraint), and therefore have added (optional) constraints for
+eliminating the symmetric solutions:
+
+    \ eliminate rotational symmetry
+    A C #<
+    A L #<
+    A S #<
+    A Q #<
+    A H #<
+    \ eliminate mirror symmetry
+    C H #<
+
+And of course I changed ARRAYSUM to use bounds; ALLDIFFERENT works in
+a value-triggered way just as before, but of course there are changes
+to cover the changes in the data structures.
+
+You can find the result in 
+
+https://github.com/AntonErtl/magic-hexagon/blob/main/magichex-bounds.4th
+
+Performance results on a Ryzen 5800X, produced with:
+
+for i in "bye" "include ~/forth/magic-hexagon/ertl-simple-all.4th mhex bye" "include ~/forth/magic-hexagon/magichex.4th labeling bye" "create symsolutions include ~/forth/magic-hexagon/magichex-bounds.4th labeling bye" "include ~/forth/magic-hexagon/magichex-bounds.4th labeling bye" "include ~/forth/magic-hexagon/ertl-simple.4th mhex bye"; do LC_NUMERIC=prog taskset -c 6 perf stat -e cycles:u -e instructions:u gforth-fast -e "warnings off" -e "$i"; done
+
+           |        with symmetric solutions       |without symmetric sols
+  overhead |   simple        value        bounds   |  bounds       simple
+ 25_586_735|160_482_071 1_248_350_451 2_503_188_624|280_888_069  53_157_746 c
+ 70_015_764|251_843_818 3_061_504_311 6_136_581_094|685_887_156 112_534_236 i
+0.007591329|0.036142430   0.265906860   0.531105561|0.061859780 0.013864220 s
+
+The lines are:
+
+c: cycles spent in user level
+i: instructions executed in user level
+s: seconds time elapsed
+
+The columns are:
+
+overhead: just starting and ending gforth-fast
+simple: no constraints; ertl-simple-all.4th and ertl-simple.4th
+value:  value-triggered constraints; magichex.4th
+bounds: bounds-triggered constraints; magichex-bounds.4th
+
+We see that for this puzzle the reduced search space does not pay for
+the increased overhead of constraints, especially of bounds-triggered
+constraints.  For problems with a bigger search space, the balance may
+be different.
+
+To demonstrate the search space reduction, here's the data I have
+extracted from the profiles of thes programs that we get with
+coverage.fs.  All three programs set the variables in the same order:
+A, C, L, S, Q, H, E.
+
+For A, there are at most 19 variants, for C a naive approach would try
+another 19 variants (for a total of 361), etc.  Smarter variants prune
+the search tree earlier, resulting in fewer variants to try.  So how
+well do they prune?
+
+~/gforth/gforth coverage.fs ~/forth/magic-hexagon/ertl-simple-all.4th -e "mhex cr bw-cover .coverage bye"
+
+   with symmetric solutions|without sym. sols
+   simple   value   bounds |  bounds simple
+A      19      19       19 |      16     19
+C     342     180      182 |      50    171
+L    3016    1760     1700 |     303    802
+S   25460   11176     9477 |     875   5824
+Q  142440   45752    13971 |     472  27954
+H  501764   30504      286 |       1  23637
+E  220440      12       12 |       1  18370
+m 2382124 8429715 15563945 | 1494494 527982
+
+The simple approaches tend to produce wider search trees, while the
+two constrain approaches prunes the search trees earlier.  In case of
+bounds without symmetric solutions, already instantiating H leads to
+the solution, instantiating E is unnecessary.  The numbers at the
+other search levels are also much smaller.  The "m" line shows the
+most-executed piece of code in the program, and here we can see that
+despite the significant pruning of the search tree, this number tends
+to grow with constraints and especially the more sophisticated
+bounds-triggered constraints; and that explains the worse performance
+of the more sophisticated approaches.
+
+Looking at the lines of code, we see
+
+   79 ertl-simple-all.4th
+   79 ertl-simple.4th
+  345 magichex-bounds.4th
+  262 magichex.4th
+  645 melahi.4th
+  731 melahi2.4th
+  523 melahi3.4th
+  428 melahi4.4th
+   92 minforth.4th
+
+So the simple approach is also smallest.
+
+- anton
+-- 
+M. Anton Ertl  http://www.complang.tuwien.ac.at/anton/home.html
+comp.lang.forth FAQs: http://www.complang.tuwien.ac.at/forth/faq/toc.html
+     New standard: https://forth-standard.org/
+   EuroForth 2022: https://euro.theforth.net
+
+From anton Thu Jun  1 10:59:41 2023
+X-newsreader: xrn 10.11
+From: anton@mips.complang.tuwien.ac.at (Anton Ertl)
+Path: mips.complang.tuwien.ac.at!anton
+Newsgroups: comp.lang.forth
+Subject: Bugs in magichex-bounds.4th
+Organization: Institut fuer Computersprachen, Technische Universitaet Wien
+Date: Thu, 01 Jun 2023 08:06:28 GMT
+Message-ID: <2023Jun1.100628@mips.complang.tuwien.ac.at>
+
+The addition of bounds and bounds-triggered constraints to
+magichex.4th did require thinking through a lot of cases, e.g.:
+
+* Has the bound changed?  E.g, if A in [3,7], and we get A<10, the
+  bounds don't change.  Only if the bounds change, bounds-triggered
+  constraints should be woken up, or we get an infinite loop.
+
+* Is a bound outside the range [0,63]? This may needs special
+  handling, because for the potential values we allow only values
+  inside [0,63].
+
+* Is the target bound an earlier-excluded interior value?  E.g., if A
+  has the starting bounds [3,7] and the possible values {3,4,6,7}, and
+  we now get A<6, we want to set the new bounds not to [3,5], but to
+  [3,4].
+
+* Does the target bound mean that the variable is instantiated? E.g.,
+  if we start with A in [3,7], and we get A<4, the result is A=3.  But
+  also, if we have A in [3,7] with possible values {3,5,6,7}, and A<5,
+  the result is that A=3.  If the variable is instantiated, the
+  value-constraints have to be triggered.
+
+* Does the target bound mean that the variable can have no value?
+  E.g., if we start with A in [3,7], and we get A<1, A can have no
+  value, and we have to backtrack.
+
+It's unsurprising that, with so many considerations in addition to the
+usual difficulties of Forth programming, I introduced some bugs.
+
+I had the fear that the bugs would be hard to find, and initially most
+of them looked mysterious, and potentially very hard to find.  It did
+not help that the backtraces did not work as intended, because the
+program uses exceptions for backtracking; Gforth has NOTHROW for this
+situation, but it did not work as intended (I have to investigate that
+yet).
+
+Still, the bugs were not that hard to find in the end; looking at the
+times in the commits when I hunted for bugs back-to-back, I see that
+they cost me between 12 and 47 minutes.  In addition to inserting
+tracers (~~), I changed the labeler to only label one or two variables
+and show the effects afterwards, or wrote a helper word that
+instantiated these variables; the latter approach eliminated the
+CATCHes of the labeling and thus restored the backtracing
+functionality, which was quite valuable.
+
+You find the project on <https://github.com/AntonErtl/magic-hexagon>
+
+Here are the commits that fixed the bugs, and a description of the
+bug.
+
+commit 8af8cc0b99fb28d52a404a58118f03f5897b9496
+
+Stack error (a DUP too much).
+
+commit d8a9aabb414ba28a68aafd458103b9b2039adbc9
+
+ARRAYSUM was value-triggered (buggy), fixed to bounds-triggered
+(I forgot to change it from magichex.4th)
+
+commit 7146668e5564d3638ba8b68e4eee070065a52e81
+
+I had commented out some code while debugging
+8af8cc0b99fb28d52a404a58118f03f5897b9496 and this bugfix undid that.
+The stack depth after CATCH was wrong; first attempt to fix that.
+
+commit 677c6c90a8b926659b8a21428c67843f75a88860
+
+Proper fix for the stack depth after CATCH.  I wonder why that stack
+depth handling works (or at least seems to) in magichex.4th (the code
+is directly from there).
+
+commit 42d6a0aa3abcc4447f203a1d2010813eca3b5043
+
+Deal with the case where the target bound is outside [0,63].
+
+commit 07e4d73d66a5735f2cf8fb53ae809a636a7b9bcb
+
+stack handling
+
+commit 1868476348908c89422818b77f8d4bea00bfe7a4
+
+I had updated the wrong bounds for the #< constraint.
+
+- anton
+-- 
+M. Anton Ertl  http://www.complang.tuwien.ac.at/anton/home.html
+comp.lang.forth FAQs: http://www.complang.tuwien.ac.at/forth/faq/toc.html
+     New standard: https://forth-standard.org/
+   EuroForth 2022: https://euro.theforth.net
